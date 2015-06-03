@@ -1,30 +1,20 @@
 \documentclass[12pt]{article}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.75in]{geometry}
 \usepackage{graphicx}
 \usepackage{times}
 \usepackage[T1]{fontenc}
 \usepackage{textcomp}
 \usepackage{titlesec}
+\usepackage{fancyvrb}
 \usepackage{parskip}
 \usepackage{array, booktabs}
 
 \titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesection.}{0.5em}{}
-\titlespacing{\section}{0em}{0.75em}{0.25em}
-
+\titlespacing{\section}{0em}{1em}{0em}
+\titlespacing{\subsection}{0em}{0.25em}{0em}
 
 \graphicspath{ {img/} }
-
-%% Each group will submit a paper detailing the design and implementation of their compiler project. At least
-%% half of the grade for the paper will depend on the presentation of some performance analysis.
-%% This paper must
-%% • Outline the overall architecture of the solution.
-%% • Describe the representation of key data (e.g., control flow graphs and instructions).
-%% • Outline optimizations implemented.
-%% • Provide a section detailing the performance of the code generated for the benchmarks. This section must
-%% contain graphs comparing the run-times of the generated code (with and without optimizations) and the
-%% C equivalent code compiled using gcc or clang (with and without optimizations).
-
 
 \begin{document}
 
@@ -45,18 +35,58 @@ Mc is input with a source file containing a JSON-representaion of the AST for a 
 
 The AST and symbol table are then passed into the static checker. The \texttt{staticCheck} function runs a series of tests on the program to make sure that it does not violate the semantics of the source language. All type checking is done in this step. The static checker can fail; upon failure the checker prints an error message and compilation stops. After the static checker finishes compilation is guaranteed.
 
-The AST is then converted to the ILOC intermediary assembly using the \texttt{ast2Iloc} function, which also required the symbol table. The ILOC is then run through several optimizing steps, detailed below. After being optimized the ILOC is converted to amd64 assembly using virtual registers with the \texttt{iloc2Amd64} function. Register allocation is then performed by the \texttt{regAlloc} function.
+The AST and symbol table are then converted to the ILOC intermediary assembly using the \texttt{ast2Iloc} function. The ILOC is then run through several optimizing steps, detailed below. After being optimized the ILOC is converted to amd64 assembly using virtual registers with the \texttt{iloc2Amd64} function. Register allocation is then performed by the \texttt{regAlloc} function.
 
 This completes the compilation process. The resulting amd64 assembly is outputted using the \texttt{programToStr} function. The resulting object file is then assembled and linked.
 
 \section*{Internal Structures}
 \subsection*{AST}
+The structure of the AST is defined by the JSON input file. The only notable feature of mc's AST is that all nodes preserve line numbers so that they can be presented to the user if there is an error from static analysis.
+
 \subsection*{Symbol Table}
-\subsection*{Control Flow Graph and Interference Graph}
+The symbol table is one of the most important data structures in mc. It consists of two custom data-types with the following definitions:
+
+\begin{Verbatim}[fontsize=\scriptsize]
+datatype func_info =
+    FUNC_INFO of {
+        params: Ast.typ list,
+        returnType: Ast.typ,
+        calls: string list
+    }
+
+datatype symbol_table =
+    ST of {
+        types: (string, (string, Ast.typ) HashTable.hash_table) HashTable.hash_table,
+        globals: (string, Ast.typ) HashTable.hash_table,
+        funcs: (string, func_info) HashTable.hash_table,
+        locals: (string, (string, Ast.typ) HashTable.hash_table) HashTable.hash_table
+    }
+\end{Verbatim}
+
+The \texttt{types} field is used by the static checker to verify type correctness. It is also used when converting the AST to the ILOC to calculate structure access offsets. The \texttt{funcs} field is used determine whether it is necessary to add spill space to functions when converting the ILOC to amd64. The remaining fields are only used by the static checker.
+
+\subsection*{Control Flow Graph}
+The control flow graph is implemented generically, and is used to represent the ILOC and the amd64 assembly. It implements several of the higher-order functions, including map, fold, and apply. The CFG significant use of references and mutation, and although it purports a functional interface, it is not implemented functionally. This implementation, although ugly, is simpler and solves several issues when optimizing the ILOC.
+
+\subsection*{Interference Graph and Virtual-To-Real map}
+The interference graph is an undirected and was significantly easier to implement. Like the CFG, it supports the higher-order functions, but it is not implemented generically, because it is only used for register allocation. The Virtual-To-Real map is a hash table that is used to keep track of how virtual registers map to real registers. It is used in conjunction with the interference graph during register allocation: the interference graph is ``deconstructed'' into a stack and ``reconstructed'' into the virtual-to-real map.
+
 \subsection*{ILOC and Amd64}
+The ILOC and Amd64 are each written similarly. Each contains an ``instruction'' datatype and an ``opcode'' datatype. However the ILOC represents registers as integers, while the amd64 represents them as a separate datatype. This is necessary in order to maintain the virtual/real register distinction.
 
 \section*{Optimizations}
+\subsection*{Copy Propagation}
+Copy propagation is run in the \texttt{copyProp} module.
 
+\subsection*{Dead Code Removal}
+Dead Code Removal is run in the \texttt{stripDeadCode} module.
+
+\subsection*{Local Value Numbering}
+Local Value Numbering is run in the \texttt{lvNumbering} module.
+
+%% • Provide a section detailing the performance of the code generated for the benchmarks. This section must
+%% contain graphs comparing the run-times of the generated code (with and without optimizations) and the
+%% C equivalent code compiled using gcc or clang (with and without optimizations).
 \section*{Code Performance}
 
 \end{document}
