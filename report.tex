@@ -5,12 +5,58 @@
 \usepackage[T1]{fontenc}
 \usepackage{textcomp}
 \usepackage{titlesec}
+\usepackage{parskip}
 \usepackage{array, booktabs}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesection.}{0.5em}{}
+\titlespacing{\section}{0em}{0.75em}{0.25em}
+
 
 \graphicspath{ {img/} }
 
+%% Each group will submit a paper detailing the design and implementation of their compiler project. At least
+%% half of the grade for the paper will depend on the presentation of some performance analysis.
+%% This paper must
+%% • Outline the overall architecture of the solution.
+%% • Describe the representation of key data (e.g., control flow graphs and instructions).
+%% • Outline optimizations implemented.
+%% • Provide a section detailing the performance of the code generated for the benchmarks. This section must
+%% contain graphs comparing the run-times of the generated code (with and without optimizations) and the
+%% C equivalent code compiled using gcc or clang (with and without optimizations).
+
+
 \begin{document}
 
-sdfsdfsd
+{\centering\Large
+  \textbf{\texttt{mc}: A Compiler for the ``Mini'' Language}\\
+         {\normalsize{\em CPE431 Final Report} / Jacob Hladky / \today}
+         \par
+}
+
+\vspace{0.5cm}
+
+Mc is a compiler for the ``mini'' toy language, targeting the amd64 architecture on OS X and GNU/Linux. Mc is written entirely in SML, and depends on one external SML module: ``SML-JSON'', which provides callbacks that assist in parsing. Mc produces either an ELF or a MachO object file that is assembled and linked by the GNU assembler and linker.
+
+The program ``mc'' is in fact a bash script which handles command-line argument parsing and which calls the SML ``compiler'' binary along with any other required programs. The ``compiler'' binary is itself compiled with mlton.
+
+\section*{Architecture}
+Mc is input with a source file containing a JSON-representaion of the AST for a mini program, and parses this JSON into an internal AST with the \texttt{json2Ast} function. Then it scans through the AST to collect various information about the program. This information is collected into the symbol table using the \texttt{mkSymbolTable} function.
+
+The AST and symbol table are then passed into the static checker. The \texttt{staticCheck} function runs a series of tests on the program to make sure that it does not violate the semantics of the source language. All type checking is done in this step. The static checker can fail; upon failure the checker prints an error message and compilation stops. After the static checker finishes compilation is guaranteed.
+
+The AST is then converted to the ILOC intermediary assembly using the \texttt{ast2Iloc} function, which also required the symbol table. The ILOC is then run through several optimizing steps, detailed below. After being optimized the ILOC is converted to amd64 assembly using virtual registers with the \texttt{iloc2Amd64} function. Register allocation is then performed by the \texttt{regAlloc} function.
+
+This completes the compilation process. The resulting amd64 assembly is outputted using the \texttt{programToStr} function. The resulting object file is then assembled and linked.
+
+\section*{Internal Structures}
+\subsection*{AST}
+\subsection*{Symbol Table}
+\subsection*{Control Flow Graph and Interference Graph}
+\subsection*{ILOC and Amd64}
+
+\section*{Optimizations}
+
+\section*{Code Performance}
 
 \end{document}
